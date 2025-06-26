@@ -8,7 +8,7 @@ export default function Home() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const ingredients = input.split(",").map((i) => i.trim());
-    const res = await fetch("https://your-backend-url/api/score", {
+    const res = await fetch("https://agent-kosmetyczny-backend.onrender.com/api/score", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ingredients }),
