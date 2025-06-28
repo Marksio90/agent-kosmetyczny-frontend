@@ -23,22 +23,21 @@ export default function Home() {
     const res = await fetch("https://agent-kosmetyczny-backend.onrender.com/api/recommend", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        skin_type: "sucha",
-        allergies: [],
-        preferences: [query],
-      }),
+      body: JSON.stringify({ description: query }), // ✅ poprawione
     });
     const data = await res.json();
-    setRecommendations(data.recommendations);
+    setRecommendations(data.products); // ✅ "products" zamiast "recommendations"
   };
 
-  const trackClick = async (productId, linkType) => {
+  const trackClick = async (productName, productLink) => {
     try {
       await fetch("https://agent-kosmetyczny-backend.onrender.com/api/track/click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_id: productId, type: linkType }),
+        body: JSON.stringify({
+          product_name: productName,
+          product_link: productLink,
+        }),
       });
     } catch (error) {
       console.error("Tracking error:", error);
@@ -77,7 +76,7 @@ export default function Home() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="np. cera sucha, szukam kremu z filtrem"
+          placeholder="np. szukam kremu z filtrem, cera sucha"
           className="w-full p-2 border rounded mb-2"
         />
         <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Szukaj rekomendacji</button>
@@ -95,28 +94,28 @@ export default function Home() {
                     href={`https://www.hebe.pl/search?query=${encodeURIComponent(item.name)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => trackClick(item.id, "hebe")}
+                    onClick={() => trackClick(item.name, `https://www.hebe.pl/search?query=${encodeURIComponent(item.name)}`)}
                     className="text-blue-600 underline"
                   >Hebe</a>
                   <a
                     href={`https://www.rossmann.pl/szukaj?SearchTerm=${encodeURIComponent(item.name)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => trackClick(item.id, "rossmann")}
+                    onClick={() => trackClick(item.name, `https://www.rossmann.pl/szukaj?SearchTerm=${encodeURIComponent(item.name)}`)}
                     className="text-blue-600 underline"
                   >Rossmann</a>
                   <a
                     href={`https://www.ceneo.pl/Kosmetyki;szukaj-${encodeURIComponent(item.name)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => trackClick(item.id, "ceneo")}
+                    onClick={() => trackClick(item.name, `https://www.ceneo.pl/Kosmetyki;szukaj-${encodeURIComponent(item.name)}`)}
                     className="text-blue-600 underline"
                   >Ceneo</a>
                   <a
                     href={`https://www.google.com/search?q=${encodeURIComponent(item.name + " " + item.brand)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => trackClick(item.id, "google")}
+                    onClick={() => trackClick(item.name, `https://www.google.com/search?q=${encodeURIComponent(item.name + " " + item.brand)}`)}
                     className="text-green-700 underline"
                   >Google</a>
                 </div>
