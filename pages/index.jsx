@@ -1,18 +1,14 @@
-// Dodajemy do index.jsx wszystkie nowe funkcje krok po kroku
-// Zakładamy, że kod startowy to Twój aktualny działający komponent Home()
-
+// pages/index.jsx
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState(null);
   const [query, setQuery] = useState("");
   const [recommendations, setRecommendations] = useState(null);
-
-  // 🔧 nowe stany do filtrowania i sortowania
   const [minScore, setMinScore] = useState(0);
-  const [sortDesc, setSortDesc] = useState(false);
-  const [showIngredients, setShowIngredients] = useState(false);
+  const [compareList, setCompareList] = useState([]);
 
   const handleScoreSubmit = async (e) => {
     e.preventDefault();
@@ -37,25 +33,21 @@ export default function Home() {
     setRecommendations(data.products);
   };
 
-  const trackClick = async (productName, link) => {
+  const trackClick = async (productName, productLink) => {
     try {
       await fetch("https://agent-kosmetyczny-backend.onrender.com/api/track/click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_name: productName,
-          product_link: link,
-        }),
+        body: JSON.stringify({ product_name: productName, product_link: productLink }),
       });
-    } catch (err) {
-      console.error("Track error", err);
+    } catch (error) {
+      console.error("Tracking error:", error);
     }
   };
 
-  // 🔍 przefiltrowana i posortowana lista
-  const filteredSorted = (recommendations || [])
-    .filter((r) => r.score_ai >= minScore)
-    .sort((a, b) => (sortDesc ? b.score_ai - a.score_ai : 0));
+  const addToCompare = (product) => {
+    setCompareList((prev) => [...prev.filter(p => p.name !== product.name), product]);
+  };
 
   return (
     <div className="p-8 max-w-2xl mx-auto space-y-8">
@@ -89,71 +81,42 @@ export default function Home() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="np. szukam kremu z filtrem"
+          placeholder="np. cera sucha, szukam kremu z filtrem"
           className="w-full p-2 border rounded mb-2"
         />
-        <div className="flex flex-col sm:flex-row gap-2 mb-2">
-          <label>
-            Minimalna ocena AI: {minScore}
-            <input
-              type="range"
-              min="0"
-              max="10"
-              step="0.1"
-              value={minScore}
-              onChange={(e) => setMinScore(parseFloat(e.target.value))}
-              className="w-full"
-            />
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={sortDesc}
-              onChange={() => setSortDesc(!sortDesc)}
-            /> Sortuj malejąco
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={showIngredients}
-              onChange={() => setShowIngredients(!showIngredients)}
-            /> Pokaż składniki
-          </label>
-        </div>
+        <label className="block mb-1">Minimalna ocena AI: {minScore}/10</label>
+        <input
+          type="range"
+          min="0"
+          max="10"
+          step="0.5"
+          value={minScore}
+          onChange={(e) => setMinScore(parseFloat(e.target.value))}
+          className="w-full mb-4"
+        />
         <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Szukaj rekomendacji</button>
       </form>
 
-      {filteredSorted.length > 0 && (
+      {recommendations && (
         <div className="bg-green-100 p-4 rounded">
           <p><strong>Rekomendacje:</strong></p>
           <ul className="mt-2 list-disc list-inside space-y-2">
-            {filteredSorted.map((item, idx) => (
+            {recommendations.filter(item => item.score_ai >= minScore).map((item, idx) => (
               <li key={idx} className="flex flex-col">
                 <span>{item.name} ({item.brand}) – {item.score_ai}/10</span>
-                {showIngredients && <p className="text-sm">Składniki: {item.ingredients.join(", ")}</p>}
                 <div className="flex gap-3 mt-1 text-sm">
-                  {['Hebe', 'Rossmann', 'Ceneo', 'Google'].map((shop) => {
-                    const urlMap = {
-                      Hebe: `https://www.hebe.pl/search?query=${encodeURIComponent(item.name)}`,
-                      Rossmann: `https://www.rossmann.pl/szukaj?SearchTerm=${encodeURIComponent(item.name)}`,
-                      Ceneo: `https://www.ceneo.pl/Kosmetyki;szukaj-${encodeURIComponent(item.name)}`,
-                      Google: `https://www.google.com/search?q=${encodeURIComponent(item.name + " " + item.brand)}`,
-                    };
-                    return (
-                      <a
-                        key={shop}
-                        href={urlMap[shop]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => trackClick(item.name, urlMap[shop])}
-                        className="text-blue-700 underline"
-                      >{shop}</a>
-                    );
-                  })}
+                  <a href={`https://www.hebe.pl/search?query=${encodeURIComponent(item.name)}`} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(item.name, 'Hebe')} className="text-blue-600 underline">Hebe</a>
+                  <a href={`https://www.rossmann.pl/szukaj?SearchTerm=${encodeURIComponent(item.name)}`} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(item.name, 'Rossmann')} className="text-blue-600 underline">Rossmann</a>
+                  <a href={`https://www.ceneo.pl/Kosmetyki;szukaj-${encodeURIComponent(item.name)}`} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(item.name, 'Ceneo')} className="text-blue-600 underline">Ceneo</a>
+                  <a href={`https://www.google.com/search?q=${encodeURIComponent(item.name + " " + item.brand)}`} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(item.name, 'Google')} className="text-green-700 underline">Google</a>
+                  <button onClick={() => addToCompare(item)} className="text-xs text-pink-600 underline">+ Porównaj</button>
                 </div>
               </li>
             ))}
           </ul>
+          {compareList.length > 0 && (
+            <Link href={{ pathname: "/compare", query: { items: JSON.stringify(compareList) } }} className="mt-4 inline-block text-white bg-pink-600 px-4 py-2 rounded">Przejdź do porównania</Link>
+          )}
         </div>
       )}
     </div>
