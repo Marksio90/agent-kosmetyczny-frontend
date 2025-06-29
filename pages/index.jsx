@@ -1,3 +1,6 @@
+// Dodajemy do index.jsx wszystkie nowe funkcje krok po kroku
+// Zakładamy, że kod startowy to Twój aktualny działający komponent Home()
+
 import { useState } from "react";
 
 export default function Home() {
@@ -5,6 +8,11 @@ export default function Home() {
   const [result, setResult] = useState(null);
   const [query, setQuery] = useState("");
   const [recommendations, setRecommendations] = useState(null);
+
+  // 🔧 nowe stany do filtrowania i sortowania
+  const [minScore, setMinScore] = useState(0);
+  const [sortDesc, setSortDesc] = useState(false);
+  const [showIngredients, setShowIngredients] = useState(false);
 
   const handleScoreSubmit = async (e) => {
     e.preventDefault();
@@ -23,26 +31,31 @@ export default function Home() {
     const res = await fetch("https://agent-kosmetyczny-backend.onrender.com/api/recommend", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: query }), // ✅ poprawione
+      body: JSON.stringify({ description: query }),
     });
     const data = await res.json();
-    setRecommendations(data.products); // ✅ "products" zamiast "recommendations"
+    setRecommendations(data.products);
   };
 
-  const trackClick = async (productName, productLink) => {
+  const trackClick = async (productName, link) => {
     try {
       await fetch("https://agent-kosmetyczny-backend.onrender.com/api/track/click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_name: productName,
-          product_link: productLink,
+          product_link: link,
         }),
       });
-    } catch (error) {
-      console.error("Tracking error:", error);
+    } catch (err) {
+      console.error("Track error", err);
     }
   };
+
+  // 🔍 przefiltrowana i posortowana lista
+  const filteredSorted = (recommendations || [])
+    .filter((r) => r.score_ai >= minScore)
+    .sort((a, b) => (sortDesc ? b.score_ai - a.score_ai : 0));
 
   return (
     <div className="p-8 max-w-2xl mx-auto space-y-8">
@@ -76,48 +89,67 @@ export default function Home() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="np. szukam kremu z filtrem, cera sucha"
+          placeholder="np. szukam kremu z filtrem"
           className="w-full p-2 border rounded mb-2"
         />
+        <div className="flex flex-col sm:flex-row gap-2 mb-2">
+          <label>
+            Minimalna ocena AI: {minScore}
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.1"
+              value={minScore}
+              onChange={(e) => setMinScore(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={sortDesc}
+              onChange={() => setSortDesc(!sortDesc)}
+            /> Sortuj malejąco
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showIngredients}
+              onChange={() => setShowIngredients(!showIngredients)}
+            /> Pokaż składniki
+          </label>
+        </div>
         <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Szukaj rekomendacji</button>
       </form>
 
-      {recommendations && (
+      {filteredSorted.length > 0 && (
         <div className="bg-green-100 p-4 rounded">
           <p><strong>Rekomendacje:</strong></p>
           <ul className="mt-2 list-disc list-inside space-y-2">
-            {recommendations.map((item, idx) => (
+            {filteredSorted.map((item, idx) => (
               <li key={idx} className="flex flex-col">
                 <span>{item.name} ({item.brand}) – {item.score_ai}/10</span>
+                {showIngredients && <p className="text-sm">Składniki: {item.ingredients.join(", ")}</p>}
                 <div className="flex gap-3 mt-1 text-sm">
-                  <a
-                    href={`https://www.hebe.pl/search?query=${encodeURIComponent(item.name)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackClick(item.name, `https://www.hebe.pl/search?query=${encodeURIComponent(item.name)}`)}
-                    className="text-blue-600 underline"
-                  >Hebe</a>
-                  <a
-                    href={`https://www.rossmann.pl/szukaj?SearchTerm=${encodeURIComponent(item.name)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackClick(item.name, `https://www.rossmann.pl/szukaj?SearchTerm=${encodeURIComponent(item.name)}`)}
-                    className="text-blue-600 underline"
-                  >Rossmann</a>
-                  <a
-                    href={`https://www.ceneo.pl/Kosmetyki;szukaj-${encodeURIComponent(item.name)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackClick(item.name, `https://www.ceneo.pl/Kosmetyki;szukaj-${encodeURIComponent(item.name)}`)}
-                    className="text-blue-600 underline"
-                  >Ceneo</a>
-                  <a
-                    href={`https://www.google.com/search?q=${encodeURIComponent(item.name + " " + item.brand)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackClick(item.name, `https://www.google.com/search?q=${encodeURIComponent(item.name + " " + item.brand)}`)}
-                    className="text-green-700 underline"
-                  >Google</a>
+                  {['Hebe', 'Rossmann', 'Ceneo', 'Google'].map((shop) => {
+                    const urlMap = {
+                      Hebe: `https://www.hebe.pl/search?query=${encodeURIComponent(item.name)}`,
+                      Rossmann: `https://www.rossmann.pl/szukaj?SearchTerm=${encodeURIComponent(item.name)}`,
+                      Ceneo: `https://www.ceneo.pl/Kosmetyki;szukaj-${encodeURIComponent(item.name)}`,
+                      Google: `https://www.google.com/search?q=${encodeURIComponent(item.name + " " + item.brand)}`,
+                    };
+                    return (
+                      <a
+                        key={shop}
+                        href={urlMap[shop]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => trackClick(item.name, urlMap[shop])}
+                        className="text-blue-700 underline"
+                      >{shop}</a>
+                    );
+                  })}
                 </div>
               </li>
             ))}
